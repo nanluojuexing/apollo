@@ -42,6 +42,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * 一个 RemoteConfigRepository 对应一个 Namespace
+ * 实现 AbstractConfigRepository 抽象类，远程配置 Repository
+ * 实现从 ConfigService 拉取配置，并缓存在内存中。并且，定时 + 实时刷新缓存
  * @author Jason Song(song_s@ctrip.com)
  */
 public class RemoteConfigRepository extends AbstractConfigRepository {
@@ -54,17 +57,43 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
   private final ConfigServiceLocator m_serviceLocator;
   private final HttpUtil m_httpUtil;
   private final ConfigUtil m_configUtil;
+
+  /**
+   * 远程配置长轮训服务
+   */
   private final RemoteConfigLongPollService remoteConfigLongPollService;
+
+  /**
+   * 指向 ApolloConfig 的 AtomicReference ，缓存配置
+   */
   private volatile AtomicReference<ApolloConfig> m_configCache;
+  /**
+   * namespace的名字
+   */
   private final String m_namespace;
   private final static ScheduledExecutorService m_executorService;
   private final AtomicReference<ServiceDTO> m_longPollServiceDto;
   private final AtomicReference<ApolloNotificationMessages> m_remoteMessages;
+  /**
+   * 加载
+   */
   private final RateLimiter m_loadConfigRateLimiter;
+
+  /**
+   * 是否强制拉取缓存的标记
+   *
+   * 若为 true ，则多一轮从 Config Service 拉取配置
+   * 为 true 的原因，RemoteConfigRepository 知道 Config Service 有配置刷新
+   */
   private final AtomicBoolean m_configNeedForceRefresh;
+
+  /**
+   * 失败重试的策略
+   */
   private final SchedulePolicy m_loadConfigFailSchedulePolicy;
   private final Gson gson;
 
+  // 初始化定任务任务的线程，后台异步执行
   static {
     m_executorService = Executors.newScheduledThreadPool(1,
         ApolloThreadFactory.create("RemoteConfigRepository", true));
@@ -77,23 +106,36 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
    */
   public RemoteConfigRepository(String namespace) {
     m_namespace = namespace;
+    //  Config 引用
     m_configCache = new AtomicReference<>();
+    // 单例的 config 配置,存放 application.properties
     m_configUtil = ApolloInjector.getInstance(ConfigUtil.class);
+    // http工具
     m_httpUtil = ApolloInjector.getInstance(HttpUtil.class);
     m_serviceLocator = ApolloInjector.getInstance(ConfigServiceLocator.class);
     remoteConfigLongPollService = ApolloInjector.getInstance(RemoteConfigLongPollService.class);
+    // 长轮询发现的当前配置发生变化的服务
     m_longPollServiceDto = new AtomicReference<>();
     m_remoteMessages = new AtomicReference<>();
+    // 限流 默认每秒两次
     m_loadConfigRateLimiter = RateLimiter.create(m_configUtil.getLoadConfigQPS());
     m_configNeedForceRefresh = new AtomicBoolean(true);
     m_loadConfigFailSchedulePolicy = new ExponentialSchedulePolicy(m_configUtil.getOnErrorRetryInterval(),
         m_configUtil.getOnErrorRetryInterval() * 8);
     gson = new Gson();
+    // 第一次同步
     this.trySync();
+    // 定时刷新
     this.schedulePeriodicRefresh();
+    // // 注册自己到 RemoteConfigLongPollService 中，实现配置更新的实时通知
+    // 保持长连接刷新
     this.scheduleLongPollingRefresh();
   }
 
+  /**
+   * 根据 namespace 获取配置
+   * @return
+   */
   @Override
   public Properties getConfig() {
     if (m_configCache.get() == null) {
@@ -112,6 +154,11 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
     return ConfigSourceType.REMOTE;
   }
 
+  /**
+   * 默认定时5分钟同步一次
+   *
+   * refreshInterval  的值 为 5
+   */
   private void schedulePeriodicRefresh() {
     logger.debug("Schedule periodic refresh with interval: {} {}",
         m_configUtil.getRefreshInterval(), m_configUtil.getRefreshIntervalTimeUnit());
@@ -121,6 +168,7 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
           public void run() {
             Tracer.logEvent("Apollo.ConfigService", String.format("periodicRefresh: %s", m_namespace));
             logger.debug("refresh config for namespace: {}", m_namespace);
+            // 尝试同步，这里 用 模版模式
             trySync();
             Tracer.logEvent("Apollo.Client.Version", Apollo.VERSION);
           }
@@ -130,16 +178,21 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
 
   @Override
   protected synchronized void sync() {
+    // 这个是埋点的事物日志
     Transaction transaction = Tracer.newTransaction("Apollo.ConfigService", "syncRemoteConfig");
 
     try {
+      // 获得缓存的 ApolloConfig 对象
       ApolloConfig previous = m_configCache.get();
+      // 从 Config Service 加载 ApolloConfig 对象 加载远程配置
       ApolloConfig current = loadApolloConfig();
 
       //reference equals means HTTP 304
+      // 若不相等，说明更新了，设置到缓存中
       if (previous != current) {
         logger.debug("Remote Config refreshed!");
         m_configCache.set(current);
+        // 触发监听器
         this.fireRepositoryChange(m_namespace, this.getConfig());
       }
 
@@ -164,6 +217,7 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
   }
 
   private ApolloConfig loadApolloConfig() {
+    // 这里首先进行限流，等到5分钟
     if (!m_loadConfigRateLimiter.tryAcquire(5, TimeUnit.SECONDS)) {
       //wait at most 5 seconds
       try {
@@ -176,21 +230,27 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
     String dataCenter = m_configUtil.getDataCenter();
     String secret = m_configUtil.getAccessKeySecret();
     Tracer.logEvent("Apollo.Client.ConfigMeta", STRING_JOINER.join(appId, cluster, m_namespace));
+    // 计算重试次数
     int maxRetries = m_configNeedForceRefresh.get() ? 2 : 1;
     long onErrorSleepTime = 0; // 0 means no sleep
     Throwable exception = null;
 
+    // 获得 configServices列表
     List<ServiceDTO> configServices = getConfigServices();
     String url = null;
+    // 循环读取配置重试次数直到成功。每一次，都会循环所有的 ServiceDTO 数组
     for (int i = 0; i < maxRetries; i++) {
+      // 随机所有的 Config Service 的地址
       List<ServiceDTO> randomConfigServices = Lists.newLinkedList(configServices);
       Collections.shuffle(randomConfigServices);
       //Access the server which notifies the client first
+      // 优先访问通知配置变更的 Config Service 的地址。并且，获取到时，需要置空，避免重复优先访问
       if (m_longPollServiceDto.get() != null) {
         randomConfigServices.add(0, m_longPollServiceDto.getAndSet(null));
       }
 
       for (ServiceDTO configService : randomConfigServices) {
+        // sleep 等待，下次从 Config Service 拉取配置
         if (onErrorSleepTime > 0) {
           logger.warn(
               "Load config failed, will retry in {} {}. appId: {}, cluster: {}, namespaces: {}",
@@ -219,17 +279,21 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
         try {
 
           HttpResponse<ApolloConfig> response = m_httpUtil.doGet(request, ApolloConfig.class);
+          // 重置强制刷新状态
           m_configNeedForceRefresh.set(false);
+          // 重置失败休息状态
           m_loadConfigFailSchedulePolicy.success();
 
           transaction.addData("StatusCode", response.getStatusCode());
           transaction.setStatus(Transaction.SUCCESS);
 
+          // 无新的配置，直接返回缓存的 ApolloConfig 对象
           if (response.getStatusCode() == 304) {
             logger.debug("Config server responds with 304 HTTP status code.");
             return m_configCache.get();
           }
 
+          // 有新的配置，进行返回新的 ApolloConfig 对象
           ApolloConfig result = response.getBody();
 
           logger.debug("Loaded config for {}: {}", m_namespace, result);
@@ -238,6 +302,7 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
         } catch (ApolloConfigStatusCodeException ex) {
           ApolloConfigStatusCodeException statusCodeException = ex;
           //config not found
+          // 若返回的状态码是 404 ，说明查询配置的 Config Service 不存在该 Namespace
           if (ex.getStatusCode() == 404) {
             String message = String.format(
                 "Could not find config for namespace - appId: %s, cluster: %s, namespace: %s, " +
@@ -256,7 +321,7 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
         } finally {
           transaction.complete();
         }
-
+        // 计算延迟时间
         // if force refresh, do normal sleep, if normal config load, do exponential sleep
         onErrorSleepTime = m_configNeedForceRefresh.get() ? m_configUtil.getOnErrorRetryInterval() :
             m_loadConfigFailSchedulePolicy.fail();
@@ -269,6 +334,17 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
     throw new ApolloConfigException(message, exception);
   }
 
+  /**
+   * 组装轮询 Config Service 的配置读取 /configs/{appId}/{clusterName}/{namespace:.+} 接口的 URL
+   * @param uri
+   * @param appId
+   * @param cluster
+   * @param namespace
+   * @param dataCenter
+   * @param remoteMessages
+   * @param previousConfig
+   * @return
+   */
   String assembleQueryConfigUrl(String uri, String appId, String cluster, String namespace,
                                 String dataCenter, ApolloNotificationMessages remoteMessages, ApolloConfig previousConfig) {
 
@@ -310,18 +386,32 @@ public class RemoteConfigRepository extends AbstractConfigRepository {
     remoteConfigLongPollService.submit(m_namespace, this);
   }
 
+  /**
+   * 当收到长连接通知时触发响应
+   * @param longPollNotifiedServiceDto
+   * @param remoteMessages
+   */
   public void onLongPollNotified(ServiceDTO longPollNotifiedServiceDto, ApolloNotificationMessages remoteMessages) {
+    // 设置长轮询到配置更新的 Config Service 。下次同步配置时，优先读取该服务
     m_longPollServiceDto.set(longPollNotifiedServiceDto);
+    // 设置 m_remoteMessages
     m_remoteMessages.set(remoteMessages);
+    // 提交同步任务
     m_executorService.submit(new Runnable() {
       @Override
       public void run() {
+        // 设置 m_configNeedForceRefresh 为 true
         m_configNeedForceRefresh.set(true);
+        // 尝试同步
         trySync();
       }
     });
   }
 
+  /**
+   * Config Service 信息
+   * @return
+   */
   private List<ServiceDTO> getConfigServices() {
     List<ServiceDTO> services = m_serviceLocator.getConfigServices();
     if (services.size() == 0) {

@@ -108,13 +108,13 @@ public class AppController {
   @PreAuthorize(value = "@permissionValidator.hasCreateApplicationPermission()")
   @PostMapping
   public App create(@Valid @RequestBody AppModel appModel) {
-
+    // 转换appModel对象
     App app = transformToApp(appModel);
-
+    // 本地创建app信息
     App createdApp = appService.createAppInLocal(app);
-
+    // 将app的信息发布出去
     publisher.publishEvent(new AppCreationEvent(createdApp));
-
+    // 授予 App 管理员的角色
     Set<String> admins = appModel.getAdmins();
     if (!CollectionUtils.isEmpty(admins)) {
       rolePermissionService

@@ -36,6 +36,7 @@ public class CreationListener {
   public void onAppCreationEvent(AppCreationEvent event) {
     AppDTO appDTO = BeanUtils.transform(AppDTO.class, event.getApp());
     List<Env> envs = portalSettings.getActiveEnvs();
+    // 循环 Env 数组，调用对应的 Admin Service 的 API ，创建 App 对象
     for (Env env : envs) {
       try {
         appAPI.createApp(env, appDTO);

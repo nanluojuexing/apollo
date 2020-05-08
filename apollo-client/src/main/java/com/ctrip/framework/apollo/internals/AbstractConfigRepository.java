@@ -17,9 +17,17 @@ import com.google.common.collect.Lists;
  */
 public abstract class AbstractConfigRepository implements ConfigRepository {
   private static final Logger logger = LoggerFactory.getLogger(AbstractConfigRepository.class);
+
+  /**
+   * RepositoryChangeListener 数组
+   */
   private List<RepositoryChangeListener> m_listeners = Lists.newCopyOnWriteArrayList();
   protected PropertiesFactory propertiesFactory = ApolloInjector.getInstance(PropertiesFactory.class);
 
+  /**
+   * 尝试同步
+   * @return 同步成功 返回 true
+   */
   protected boolean trySync() {
     try {
       sync();
@@ -30,9 +38,11 @@ public abstract class AbstractConfigRepository implements ConfigRepository {
           .warn("Sync config failed, will retry. Repository {}, reason: {}", this.getClass(), ExceptionUtil
               .getDetailMessage(ex));
     }
+    // 失败返回 false
     return false;
   }
 
+  // 模版方法，具体由子类实现
   protected abstract void sync();
 
   @Override
@@ -47,6 +57,11 @@ public abstract class AbstractConfigRepository implements ConfigRepository {
     m_listeners.remove(listener);
   }
 
+  /**
+   * 触发监听器
+   * @param namespace
+   * @param newProperties
+   */
   protected void fireRepositoryChange(String namespace, Properties newProperties) {
     for (RepositoryChangeListener listener : m_listeners) {
       try {

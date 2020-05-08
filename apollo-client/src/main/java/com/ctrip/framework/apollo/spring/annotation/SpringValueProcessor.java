@@ -28,6 +28,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.annotation.Bean;
 
 /**
+ * 处理Spring 的 @Value 注解
  * Spring value processor of field or method which has @Value and xml config placeholders.
  *
  * @author github.com/zhegexiaohuozi  seimimaster@gmail.com
@@ -39,6 +40,7 @@ public class SpringValueProcessor extends ApolloProcessor implements BeanFactory
 
   private final ConfigUtil configUtil;
   private final PlaceholderHelper placeholderHelper;
+  // @Value 注册中心，保存了他的 key/value 结构
   private final SpringValueRegistry springValueRegistry;
 
   private BeanFactory beanFactory;
@@ -74,10 +76,12 @@ public class SpringValueProcessor extends ApolloProcessor implements BeanFactory
   @Override
   protected void processField(Object bean, String beanName, Field field) {
     // register @Value on field
+    // 获得value注解
     Value value = field.getAnnotation(Value.class);
     if (value == null) {
       return;
     }
+    // 抽取具体的key
     Set<String> keys = placeholderHelper.extractPlaceholderKeys(value.value());
 
     if (keys.isEmpty()) {
@@ -86,6 +90,7 @@ public class SpringValueProcessor extends ApolloProcessor implements BeanFactory
 
     for (String key : keys) {
       SpringValue springValue = new SpringValue(key, value.value(), bean, beanName, field, false);
+      // 注册对应的 key 和 value
       springValueRegistry.register(beanFactory, key, springValue);
       logger.debug("Monitoring {}", springValue);
     }

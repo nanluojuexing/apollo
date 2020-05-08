@@ -10,6 +10,9 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 
+/**
+ *
+ */
 @Entity
 @Table(name = "App")
 @SQLDelete(sql = "Update App set isDeleted = 1 where id = ?")

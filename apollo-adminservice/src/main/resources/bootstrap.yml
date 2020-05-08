@@ -1,6 +1,6 @@
 eureka:
   instance:
-    hostname: ${hostname:localhost}
+    hostname: ${hostname:127.0.0.1}
     preferIpAddress: true
     status-page-url-path: /info
     health-check-url-path: /health

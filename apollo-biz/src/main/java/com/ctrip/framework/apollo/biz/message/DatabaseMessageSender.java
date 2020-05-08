@@ -43,6 +43,7 @@ public class DatabaseMessageSender implements MessageSender {
   @Transactional
   public void sendMessage(String message, String channel) {
     logger.info("Sending message {} to channel {}", message, channel);
+    // 仅允许发送 APOLLO_RELEASE_TOPIC
     if (!Objects.equals(channel, Topics.APOLLO_RELEASE_TOPIC)) {
       logger.warn("Channel {} not supported by DatabaseMessageSender!");
       return;
@@ -51,7 +52,9 @@ public class DatabaseMessageSender implements MessageSender {
     Tracer.logEvent("Apollo.AdminService.ReleaseMessage", message);
     Transaction transaction = Tracer.newTransaction("Apollo.AdminService", "sendMessage");
     try {
+      // 保存 ReleaseMessage 对象
       ReleaseMessage newMessage = releaseMessageRepository.save(new ReleaseMessage(message));
+      // 添加到清理 Message 队列。若队列已满，添加失败，不阻塞等待。
       toClean.offer(newMessage.getId());
       transaction.setStatus(Transaction.SUCCESS);
     } catch (Throwable ex) {

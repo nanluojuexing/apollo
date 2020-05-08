@@ -49,6 +49,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 /**
+ *
+ * 实现 ReleaseMessageListener 接口，通知 Controller ，仅提供 notifications/v2 接口
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 @RestController

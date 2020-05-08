@@ -3,6 +3,7 @@ package com.ctrip.framework.apollo.internals;
 import java.util.Properties;
 
 /**
+ * 监听 Repository 的配置的变化
  * @author Jason Song(song_s@ctrip.com)
  */
 public interface RepositoryChangeListener {

@@ -11,6 +11,7 @@ import org.springframework.core.PriorityOrdered;
 import org.springframework.util.ReflectionUtils;
 
 /**
+ * BeanPostProcessor 每个 bean 初始化成前后做操作
  * Create by zhangzheng on 2018/2/6
  */
 public abstract class ApolloProcessor implements BeanPostProcessor, PriorityOrdered {

@@ -48,4 +48,22 @@ public class DefaultApolloConfigRegistrarHelper implements ApolloConfigRegistrar
   public int getOrder() {
     return Ordered.LOWEST_PRECEDENCE;
   }
+
+  /**
+   * spring 初始化的流程
+
+   refresh() –> invokeBeanFactoryPostProcessors(beanFactory) –> PropertySourcesProcessor.postProcessBeanFactory
+
+   —> initializePropertySources();
+
+   —> initializeAutoUpdatePropertiesFeature(beanFactory);
+
+
+   引用流程
+   @EnableApolloConfig -> ApolloConfigRegistrar -> ApolloConfigRegistrarHelper ->DefaultApolloConfigRegistrarHelper.registerBeanDefinitions()
+
+   ->  BeanRegistrationUtil.registerBeanDefinitionIfNotExists(registry, PropertySourcesProcessor.class.getName(),PropertySourcesProcessor.class);
+
+   -> PropertySourcesProcessor.postProcessBeanFactory
+   */
 }

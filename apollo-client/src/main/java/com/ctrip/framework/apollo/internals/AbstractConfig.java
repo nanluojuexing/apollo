@@ -35,11 +35,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * 1）缓存读取属性值
+ * 2）异步通知监听器
+ * 3）计算属性变化等等特性
  * @author Jason Song(song_s@ctrip.com)
  */
 public abstract class AbstractConfig implements Config {
   private static final Logger logger = LoggerFactory.getLogger(AbstractConfig.class);
 
+  /**
+   * ExecutorService 对象，用于配置变化时，异步通知 ConfigChangeListener 监听器们
+   *
+   * 静态属性，所有 Config 共享该线程池。
+   */
   private static final ExecutorService m_executorService;
 
   private final List<ConfigChangeListener> m_listeners = Lists.newCopyOnWriteArrayList();

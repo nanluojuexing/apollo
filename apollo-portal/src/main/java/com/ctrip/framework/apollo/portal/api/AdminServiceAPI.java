@@ -16,7 +16,9 @@ import org.springframework.util.MultiValueMap;
 
 import java.util.*;
 
-
+/**
+ * admin Service 所有模块 API 的调用封装
+ */
 @Service
 public class AdminServiceAPI {
 
@@ -28,6 +30,9 @@ public class AdminServiceAPI {
     }
   }
 
+  /**
+   * 封装对 Admin Service 的 App 模块的 API 调用
+   */
   @Service
   public static class AppAPI extends API {
 

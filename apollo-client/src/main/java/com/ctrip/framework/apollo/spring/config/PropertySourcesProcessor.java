@@ -31,6 +31,8 @@ import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
 
 /**
+ *  Config 和自动更新监听器绑定，同时注入 Spring 环境
+ *
  * Apollo Property Sources processor for Spring Annotation Based Application. <br /> <br />
  *
  * The reason why PropertySourcesProcessor implements {@link BeanFactoryPostProcessor} instead of
@@ -41,6 +43,10 @@ import org.springframework.core.env.PropertySource;
  * @author Jason Song(song_s@ctrip.com)
  */
 public class PropertySourcesProcessor implements BeanFactoryPostProcessor, EnvironmentAware, PriorityOrdered {
+
+  /**
+   *
+   */
   private static final Multimap<Integer, String> NAMESPACE_NAMES = LinkedHashMultimap.create();
   private static final Set<BeanFactory> AUTO_UPDATE_INITIALIZED_BEAN_FACTORIES = Sets.newConcurrentHashSet();
 
@@ -67,19 +73,21 @@ public class PropertySourcesProcessor implements BeanFactoryPostProcessor, Envir
     CompositePropertySource composite = new CompositePropertySource(PropertySourcesConstants.APOLLO_PROPERTY_SOURCE_NAME);
 
     //sort by order asc
+    // 将NAMESPACE_NAMES （Multimap<Integer, String>）排序
     ImmutableSortedSet<Integer> orders = ImmutableSortedSet.copyOf(NAMESPACE_NAMES.keySet());
     Iterator<Integer> iterator = orders.iterator();
-
+    // 遍历一次获取 config 信息
     while (iterator.hasNext()) {
       int order = iterator.next();
       for (String namespace : NAMESPACE_NAMES.get(order)) {
         Config config = ConfigService.getConfig(namespace);
-
+        // 将config 封装成 ConfigPropertySource，保存到 CompositePropertySource
         composite.addPropertySource(configPropertySourceFactory.getConfigPropertySource(namespace, config));
       }
     }
 
     // clean up
+    // 循环处理完 NAMESPACE_NAMES 之后，将其清空掉
     NAMESPACE_NAMES.clear();
 
     // add after the bootstrap property source or to the first

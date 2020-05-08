@@ -15,6 +15,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.google.common.collect.Multimaps;
 import org.springframework.beans.factory.BeanFactory;
 
+/**
+ * @Value 注册中心，保存了 key/value 结构
+ */
 public class SpringValueRegistry {
   private static final long CLEAN_INTERVAL_IN_SECONDS = 5;
   private final Map<BeanFactory, Multimap<String, SpringValue>> registry = Maps.newConcurrentMap();

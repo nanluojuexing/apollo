@@ -8,6 +8,9 @@ import java.lang.reflect.Type;
 import org.springframework.core.MethodParameter;
 
 /**
+ *
+ * @Value 注解的详细信息数据结构
+ *
  * Spring @Value method info
  *
  * @author github.com/zhegexiaohuozi  seimimaster@gmail.com
