@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * DeferredResult 包装器
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 public class DeferredResultWrapper implements Comparable<DeferredResultWrapper> {

@@ -30,6 +30,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 实现 InitializingBean 接口，缓存 AppNamespace 的 Service 实现类。通过将 AppNamespace 缓存在内存中，提高查询性能
  * @author Jason Song(song_s@ctrip.com)
  */
 @Service
@@ -40,19 +41,44 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
   private final AppNamespaceRepository appNamespaceRepository;
   private final BizConfig bizConfig;
 
+  /**
+   * 增量初始化周期
+   */
   private int scanInterval;
+  /**
+   * 增量初始化周期单位
+   */
   private TimeUnit scanIntervalTimeUnit;
+  /**
+   * 重建周期
+   */
   private int rebuildInterval;
+  /**
+   * 重建周期单位
+   */
   private TimeUnit rebuildIntervalTimeUnit;
+  /**
+   * 定时任务 ExecutorService
+   */
   private ScheduledExecutorService scheduledExecutorService;
+  /**
+   * 最后扫描到的 AppNamespace 的编号
+   */
   private long maxIdScanned;
 
   //store namespaceName -> AppNamespace
+  /**
+   * 公用类型的 AppNamespace 的缓存
+   *
+   * //store namespaceName -> AppNamespace
+   */
   private CaseInsensitiveMapWrapper<AppNamespace> publicAppNamespaceCache;
 
+  // App 下的 AppNamespace 的缓存
   //store appId+namespaceName -> AppNamespace
   private CaseInsensitiveMapWrapper<AppNamespace> appNamespaceCache;
 
+  // AppNamespace 的缓存
   //store id -> AppNamespace
   private Map<Long, AppNamespace> appNamespaceIdCache;
 
@@ -66,9 +92,11 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
 
   private void initialize() {
     maxIdScanned = 0;
+    // 创建缓存对象
     publicAppNamespaceCache = new CaseInsensitiveMapWrapper<>(Maps.newConcurrentMap());
     appNamespaceCache = new CaseInsensitiveMapWrapper<>(Maps.newConcurrentMap());
     appNamespaceIdCache = Maps.newConcurrentMap();
+    // 创建 ScheduledExecutorService 对象，大小为 1
     scheduledExecutorService = Executors.newScheduledThreadPool(1, ApolloThreadFactory
         .create("AppNamespaceServiceWithCache", true));
   }
@@ -115,12 +143,16 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
 
   @Override
   public void afterPropertiesSet() throws Exception {
+    // 从 ServerConfig 中，读取定时任务的周期配置
     populateDataBaseInterval();
+    // 全量初始化 AppNamespace 缓存
     scanNewAppNamespaces(); //block the startup process until load finished
+    // 创建定时任务，全量重构 AppNamespace 缓存
     scheduledExecutorService.scheduleAtFixedRate(() -> {
       Transaction transaction = Tracer.newTransaction("Apollo.AppNamespaceServiceWithCache",
           "rebuildCache");
       try {
+        // 全量重建 AppNamespace 缓存
         this.updateAndDeleteCache();
         transaction.setStatus(Transaction.SUCCESS);
       } catch (Throwable ex) {
@@ -130,6 +162,7 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
         transaction.complete();
       }
     }, rebuildInterval, rebuildInterval, rebuildIntervalTimeUnit);
+    // 创建定时任务，增量初始化 AppNamespace 缓存
     scheduledExecutorService.scheduleWithFixedDelay(this::scanNewAppNamespaces, scanInterval,
         scanInterval, scanIntervalTimeUnit);
   }
@@ -148,16 +181,22 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
     }
   }
 
+  /**
+   * 新的 AppNamespace
+   */
   //for those new app namespaces
   private void loadNewAppNamespaces() {
     boolean hasMore = true;
+    // 循环，直到无新的 AppNamespace
     while (hasMore && !Thread.currentThread().isInterrupted()) {
       //current batch is 500
+      // 获得大于 maxIdScanned 的 500 条 AppNamespace 记录，按照 id 升序
       List<AppNamespace> appNamespaces = appNamespaceRepository
           .findFirst500ByIdGreaterThanOrderByIdAsc(maxIdScanned);
       if (CollectionUtils.isEmpty(appNamespaces)) {
         break;
       }
+      // 合并到 AppNamespace 缓存中
       mergeAppNamespaces(appNamespaces);
       int scanned = appNamespaces.size();
       maxIdScanned = appNamespaces.get(scanned - 1).getId();
@@ -178,10 +217,12 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
 
   //for those updated or deleted app namespaces
   private void updateAndDeleteCache() {
+    // 从缓存中，获得所有的 AppNamespace 编号集合
     List<Long> ids = Lists.newArrayList(appNamespaceIdCache.keySet());
     if (CollectionUtils.isEmpty(ids)) {
       return;
     }
+    // 每 500 一批，从数据库中查询最新的 AppNamespace 信息
     List<List<Long>> partitionIds = Lists.partition(ids, 500);
     for (List<Long> toRebuild : partitionIds) {
       Iterable<AppNamespace> appNamespaces = appNamespaceRepository.findAllById(toRebuild);
@@ -191,6 +232,7 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
       }
 
       //handle updated
+      // 处理更新的情况
       Set<Long> foundIds = handleUpdatedAppNamespaces(appNamespaces);
 
       //handle deleted
@@ -204,6 +246,7 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
     for (AppNamespace appNamespace : appNamespaces) {
       foundIds.add(appNamespace.getId());
       AppNamespace thatInCache = appNamespaceIdCache.get(appNamespace.getId());
+      // 从 DB 中查询到的 AppNamespace 的更新时间更大，才认为是更新
       if (thatInCache != null && appNamespace.getDataChangeLastModifiedTime().after(thatInCache
           .getDataChangeLastModifiedTime())) {
         appNamespaceIdCache.put(appNamespace.getId(), appNamespace);

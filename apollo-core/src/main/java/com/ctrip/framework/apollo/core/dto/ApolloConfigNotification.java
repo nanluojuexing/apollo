@@ -1,10 +1,17 @@
 package com.ctrip.framework.apollo.core.dto;
 
 /**
+ * Apollo 配置通知 DTO
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 public class ApolloConfigNotification {
   private String namespaceName;
+  /**
+   * 最新通知编号
+   *
+   * 目前使用 `ReleaseMessage.id` 。
+   */
   private long notificationId;
   private volatile ApolloNotificationMessages messages;
 

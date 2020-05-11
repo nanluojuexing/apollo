@@ -6,9 +6,15 @@ import com.google.common.collect.Maps;
 import java.util.Map;
 
 /**
+ * Apollo 配置通知消息集合 DTO
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 public class ApolloNotificationMessages {
+  /**
+   * 对于一个 Namespace 的通知，使用 ApolloConfigNotification 的 namespaceName + notificationId 已经足够了
+   * 但是，在 namespaceName 对应的 Namespace 是关联类型时，会同时查询当前 Namespace + 关联的 Namespace 这两个 Namespace，所以会是多个，使用 Map 数据结构
+   */
   private Map<String, Long> details;
 
   public ApolloNotificationMessages() {

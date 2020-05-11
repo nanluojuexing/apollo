@@ -27,6 +27,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
+ *
+ * 实现 InitializingBean 和 ReleaseMessageListener 接口，缓存 ReleaseMessage 的 Service 实现类
+ * 通过将 ReleaseMessage 缓存在内存中，提高查询性能
  * @author Jason Song(song_s@ctrip.com)
  */
 @Service
