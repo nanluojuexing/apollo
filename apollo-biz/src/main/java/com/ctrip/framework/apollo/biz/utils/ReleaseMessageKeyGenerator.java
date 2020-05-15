@@ -5,6 +5,9 @@ import com.google.common.base.Joiner;
 
 import com.ctrip.framework.apollo.core.ConfigConsts;
 
+/**
+ * ReleaseMessage 消息内容( ReleaseMessage.message )生成器
+ */
 public class ReleaseMessageKeyGenerator {
 
   private static final Joiner STRING_JOINER = Joiner.on(ConfigConsts.CLUSTER_NAMESPACE_SEPARATOR);

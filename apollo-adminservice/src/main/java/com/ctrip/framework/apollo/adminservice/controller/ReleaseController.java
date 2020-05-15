@@ -98,6 +98,17 @@ public class ReleaseController {
     return BeanUtils.transform(ReleaseDTO.class, release);
   }
 
+  /**
+   * admin 主版本发布变更接口
+   * @param appId
+   * @param clusterName
+   * @param namespaceName
+   * @param releaseName
+   * @param releaseComment
+   * @param operator
+   * @param isEmergencyPublish
+   * @return
+   */
   @Transactional
   @PostMapping("/apps/{appId}/clusters/{clusterName}/namespaces/{namespaceName}/releases")
   public ReleaseDTO publish(@PathVariable("appId") String appId,
@@ -107,21 +118,25 @@ public class ReleaseController {
                             @RequestParam(name = "comment", required = false) String releaseComment,
                             @RequestParam("operator") String operator,
                             @RequestParam(name = "isEmergencyPublish", defaultValue = "false") boolean isEmergencyPublish) {
+    // 校验存在与否
     Namespace namespace = namespaceService.findOne(appId, clusterName, namespaceName);
     if (namespace == null) {
       throw new NotFoundException(String.format("Could not find namespace for %s %s %s", appId,
                                                 clusterName, namespaceName));
     }
+    // 发布
     Release release = releaseService.publish(namespace, releaseName, releaseComment, operator, isEmergencyPublish);
 
-    //send release message
+    //send release message 发送消息到 ReleaseMessage
     Namespace parentNamespace = namespaceService.findParentNamespace(namespace);
     String messageCluster;
+
     if (parentNamespace != null) {
       messageCluster = parentNamespace.getClusterName();
     } else {
       messageCluster = clusterName;
     }
+    // 发送消息
     messageSender.sendMessage(ReleaseMessageKeyGenerator.generate(appId, messageCluster, namespaceName),
                               Topics.APOLLO_RELEASE_TOPIC);
     return BeanUtils.transform(ReleaseDTO.class, release);

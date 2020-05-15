@@ -147,7 +147,7 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
     populateDataBaseInterval();
     // 全量初始化 AppNamespace 缓存
     scanNewAppNamespaces(); //block the startup process until load finished
-    // 创建定时任务，全量重构 AppNamespace 缓存
+    // 创建定时任务，全量重构 AppNamespace 缓存 这里的权量构建频率是 60s
     scheduledExecutorService.scheduleAtFixedRate(() -> {
       Transaction transaction = Tracer.newTransaction("Apollo.AppNamespaceServiceWithCache",
           "rebuildCache");
@@ -162,7 +162,7 @@ public class AppNamespaceServiceWithCache implements InitializingBean {
         transaction.complete();
       }
     }, rebuildInterval, rebuildInterval, rebuildIntervalTimeUnit);
-    // 创建定时任务，增量初始化 AppNamespace 缓存
+    // 创建定时任务，增量初始化 AppNamespace 缓存 每秒都回去获取增量的配置
     scheduledExecutorService.scheduleWithFixedDelay(this::scanNewAppNamespaces, scanInterval,
         scanInterval, scanIntervalTimeUnit);
   }

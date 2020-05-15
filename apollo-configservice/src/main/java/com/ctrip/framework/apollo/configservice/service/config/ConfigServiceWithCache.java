@@ -137,9 +137,9 @@ public class ConfigServiceWithCache extends AbstractConfigService {
 
     ConfigCacheEntry cacheEntry = configCache.getUnchecked(key);
 
+    // 若客户端的通知编号更大，说明缓存已经过期
     //cache is out-dated
-    if (clientMessages != null && clientMessages.has(key) &&
-        clientMessages.get(key) > cacheEntry.getNotificationId()) {
+    if (clientMessages != null && clientMessages.has(key) && clientMessages.get(key) > cacheEntry.getNotificationId()) {
       //invalidate the cache and try to load from db again
       invalidate(key);
       cacheEntry = configCache.getUnchecked(key);
@@ -148,6 +148,10 @@ public class ConfigServiceWithCache extends AbstractConfigService {
     return cacheEntry.getRelease();
   }
 
+  /**
+   * 清空缓存
+   * @param key
+   */
   private void invalidate(String key) {
     configCache.invalidate(key);
     Tracer.logEvent(TRACER_EVENT_CACHE_INVALIDATE, key);

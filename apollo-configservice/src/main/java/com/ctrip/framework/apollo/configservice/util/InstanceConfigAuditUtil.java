@@ -40,6 +40,7 @@ public class InstanceConfigAuditUtil implements InitializingBean {
   private static final Joiner STRING_JOINER = Joiner.on(ConfigConsts.CLUSTER_NAMESPACE_SEPARATOR);
   private final ExecutorService auditExecutorService;
   private final AtomicBoolean auditStopped;
+  // 长度为 10000 的阻塞队列
   private BlockingQueue<InstanceConfigAuditModel> audits = Queues.newLinkedBlockingQueue
       (INSTANCE_CONFIG_AUDIT_MAX_SIZE);
   private Cache<String, Long> instanceCache;

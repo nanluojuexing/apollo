@@ -20,6 +20,8 @@ import com.ctrip.framework.apollo.tracer.spi.Transaction;
 import com.google.common.collect.Lists;
 
 /**
+ * ReleaseMessage 扫描器，被 Config Service 使用
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 public class ReleaseMessageScanner implements InitializingBean {
@@ -28,9 +30,18 @@ public class ReleaseMessageScanner implements InitializingBean {
   private BizConfig bizConfig;
   @Autowired
   private ReleaseMessageRepository releaseMessageRepository;
+  /**
+   * 从 DB 中扫描 ReleaseMessage 表的频率，单位：毫秒
+   */
   private int databaseScanInterval;
+  /**
+   * 监听器数组
+   */
   private List<ReleaseMessageListener> listeners;
   private ScheduledExecutorService executorService;
+  /**
+   * 最后扫描到的 ReleaseMessage 的编号
+   */
   private long maxIdScanned;
 
   public ReleaseMessageScanner() {
@@ -39,6 +50,10 @@ public class ReleaseMessageScanner implements InitializingBean {
         .create("ReleaseMessageScanner", true));
   }
 
+  /**
+   * 初始化 Scan 任务
+   * @throws Exception
+   */
   @Override
   public void afterPropertiesSet() throws Exception {
     databaseScanInterval = bizConfig.releaseMessageScanIntervalInMilli();
@@ -46,6 +61,7 @@ public class ReleaseMessageScanner implements InitializingBean {
     executorService.scheduleWithFixedDelay((Runnable) () -> {
       Transaction transaction = Tracer.newTransaction("Apollo.ReleaseMessageScanner", "scanMessage");
       try {
+        // 从 DB 中，扫描 ReleaseMessage
         scanMessages();
         transaction.setStatus(Transaction.SUCCESS);
       } catch (Throwable ex) {
@@ -81,6 +97,8 @@ public class ReleaseMessageScanner implements InitializingBean {
   /**
    * scan messages and send
    *
+   * 扫描消息，并返回是否继续有新的 ReleaseMessage 可以继续扫描
+   *
    * @return whether there are more messages
    */
   private boolean scanAndSendMessages() {
@@ -90,6 +108,7 @@ public class ReleaseMessageScanner implements InitializingBean {
     if (CollectionUtils.isEmpty(releaseMessages)) {
       return false;
     }
+    // 触发监听器
     fireMessageScanned(releaseMessages);
     int messageScanned = releaseMessages.size();
     maxIdScanned = releaseMessages.get(messageScanned - 1).getId();

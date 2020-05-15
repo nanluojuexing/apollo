@@ -32,6 +32,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
+ * 获取读取配置的接口
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 @RestController
@@ -61,6 +63,20 @@ public class ConfigController {
     this.gson = gson;
   }
 
+  /**
+   * 提供配置的读取功能
+   * @param appId
+   * @param clusterName
+   * @param namespace
+   * @param dataCenter
+   * @param clientSideReleaseKey
+   * @param clientIp
+   * @param messagesAsString 客户端当前请求的 Namespace 的通知消息明细
+   * @param request
+   * @param response
+   * @return
+   * @throws IOException
+   */
   @GetMapping(value = "/{appId}/{clusterName}/{namespace:.+}")
   public ApolloConfig queryConfig(@PathVariable String appId, @PathVariable String clusterName,
                                   @PathVariable String namespace,
@@ -79,15 +95,15 @@ public class ConfigController {
       clientIp = tryToGetClientIp(request);
     }
 
+    // 解析 messagesAsString 参数，创建 ApolloNotificationMessages 对象。
     ApolloNotificationMessages clientMessages = transformMessages(messagesAsString);
 
     List<Release> releases = Lists.newLinkedList();
 
     String appClusterNameLoaded = clusterName;
     if (!ConfigConsts.NO_APPID_PLACEHOLDER.equalsIgnoreCase(appId)) {
-      Release currentAppRelease = configService.loadConfig(appId, clientIp, appId, clusterName, namespace,
-          dataCenter, clientMessages);
-
+      // 获得 Release 对象
+      Release currentAppRelease = configService.loadConfig(appId, clientIp, appId, clusterName, namespace, dataCenter, clientMessages);
       if (currentAppRelease != null) {
         releases.add(currentAppRelease);
         //we have cluster search process, so the cluster name might be overridden
@@ -95,6 +111,7 @@ public class ConfigController {
       }
     }
 
+    // 若 Namespace 为关联类型，则获取关联的 Namespace 的 Release 对象
     //if namespace does not belong to this appId, should check if there is a public configuration
     if (!namespaceBelongsToAppId(appId, namespace)) {
       Release publicRelease = this.findPublicConfig(appId, clientIp, clusterName, namespace,
@@ -104,6 +121,7 @@ public class ConfigController {
       }
     }
 
+    // 若获得不到 Release ，返回状态码为 404 的响应
     if (releases.isEmpty()) {
       response.sendError(HttpServletResponse.SC_NOT_FOUND,
           String.format(
@@ -113,12 +131,12 @@ public class ConfigController {
           assembleKey(appId, clusterName, originalNamespace, dataCenter));
       return null;
     }
-
+    // 记录 InstanceConfig
     auditReleases(appId, clusterName, dataCenter, clientIp, releases);
-
+    // 计算 Config Service 的合并 ReleaseKey
     String mergedReleaseKey = releases.stream().map(Release::getReleaseKey)
             .collect(Collectors.joining(ConfigConsts.CLUSTER_NAMESPACE_SEPARATOR));
-
+    // 对比 Client 的合并 Release Key 。若相等，说明没有改变，返回状态码为 302 的响应
     if (mergedReleaseKey.equals(clientSideReleaseKey)) {
       // Client side configuration is the same with server side, return 304
       response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
@@ -129,6 +147,7 @@ public class ConfigController {
 
     ApolloConfig apolloConfig = new ApolloConfig(appId, appClusterNameLoaded, originalNamespace,
         mergedReleaseKey);
+    // 合并 Release 的配置，并将结果设置到 ApolloConfig 中
     apolloConfig.setConfigurations(mergeReleaseConfigurations(releases));
 
     Tracer.logEvent("Apollo.Config.Found", assembleKey(appId, appClusterNameLoaded,
@@ -192,6 +211,14 @@ public class ConfigController {
     return keyParts.stream().collect(Collectors.joining(ConfigConsts.CLUSTER_NAMESPACE_SEPARATOR));
   }
 
+  /**
+   * 记录此次访问的情况
+   * @param appId
+   * @param cluster
+   * @param dataCenter
+   * @param clientIp
+   * @param releases
+   */
   private void auditReleases(String appId, String cluster, String dataCenter, String clientIp,
                              List<Release> releases) {
     if (Strings.isNullOrEmpty(clientIp)) {

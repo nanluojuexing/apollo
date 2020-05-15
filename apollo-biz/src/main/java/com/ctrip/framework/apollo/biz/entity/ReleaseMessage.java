@@ -23,9 +23,15 @@ public class ReleaseMessage {
   @Column(name = "Id")
   private long id;
 
+  /**
+   * 消息内容 appId+cluster+namespace
+   */
   @Column(name = "Message", nullable = false)
   private String message;
 
+  /**
+   * 最后的更新时间
+   */
   @Column(name = "DataChange_LastTime")
   private Date dataChangeLastModifiedTime;
 

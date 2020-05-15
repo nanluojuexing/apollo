@@ -121,6 +121,7 @@ public class GrayReleaseRulesHolder implements ReleaseMessageListener, Initializ
   public Long findReleaseIdFromGrayReleaseRule(String clientAppId, String clientIp, String
       configAppId, String configCluster, String configNamespaceName) {
     String key = assembleGrayReleaseRuleKey(configAppId, configCluster, configNamespaceName);
+    // 从缓存中获取, 缓存是个 handler 监听器 + 定时任务
     if (!grayReleaseRuleCache.containsKey(key)) {
       return null;
     }

@@ -12,6 +12,8 @@ public interface ConfigService extends ReleaseMessageListener {
   /**
    * Load config
    *
+   * 读取指定 Namespace 的最新的 Release 对象
+   *
    * @param clientAppId the client's app id
    * @param clientIp the client ip
    * @param configAppId the requested config's app id

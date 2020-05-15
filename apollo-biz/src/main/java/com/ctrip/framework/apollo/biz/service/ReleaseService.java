@@ -160,14 +160,15 @@ public class ReleaseService {
   @Transactional
   public Release publish(Namespace namespace, String releaseName, String releaseComment,
                          String operator, boolean isEmergencyPublish) {
-
+    // 检查锁，基于数据库实现
     checkLock(namespace, isEmergencyPublish, operator);
-
+    // 获取item
     Map<String, String> operateNamespaceItems = getNamespaceItems(namespace);
-
+    // 根据当前 namespace 找到父 namespace, 也就是灰度的主版本.
     Namespace parentNamespace = namespaceService.findParentNamespace(namespace);
 
     //branch release
+    // 父 namespace 不是 null, 说明当前就是灰度版本
     if (parentNamespace != null) {
       return publishBranchNamespace(parentNamespace, namespace, operateNamespaceItems,
                                     releaseName, releaseComment, operator, isEmergencyPublish);
@@ -182,12 +183,14 @@ public class ReleaseService {
 
     //master release
     Map<String, Object> operationContext = Maps.newLinkedHashMap();
+    // 记录是否紧急发布
     operationContext.put(ReleaseOperationContext.IS_EMERGENCY_PUBLISH, isEmergencyPublish);
-
+    // 主版本发布
     Release release = masterRelease(namespace, releaseName, releaseComment, operateNamespaceItems,
                                     operator, ReleaseOperation.NORMAL_RELEASE, operationContext);
 
     //merge to branch and auto release
+    // 将主版本合并到灰度版本. 并自动发布
     if (childNamespace != null) {
       mergeFromMasterAndPublishBranch(namespace, childNamespace, operateNamespaceItems,
                                       releaseName, releaseComment, operator, previousRelease,

@@ -21,20 +21,36 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
+ *
+ * Message 发送者实现类，基于数据库实现
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 @Component
 public class DatabaseMessageSender implements MessageSender {
   private static final Logger logger = LoggerFactory.getLogger(DatabaseMessageSender.class);
+  /**
+   * 清理message 消息的容量
+   */
   private static final int CLEAN_QUEUE_MAX_SIZE = 100;
+  /**
+   * 清理 Message 队列
+   */
   private BlockingQueue<Long> toClean = Queues.newLinkedBlockingQueue(CLEAN_QUEUE_MAX_SIZE);
+  /**
+   * 清理 Message ExecutorService
+   */
   private final ExecutorService cleanExecutorService;
+  /**
+   * 是否停止清除
+   */
   private final AtomicBoolean cleanStopped;
 
   private final ReleaseMessageRepository releaseMessageRepository;
 
   public DatabaseMessageSender(final ReleaseMessageRepository releaseMessageRepository) {
     cleanExecutorService = Executors.newSingleThreadExecutor(ApolloThreadFactory.create("DatabaseMessageSender", true));
+    // 设置 cleanStopped 为 false
     cleanStopped = new AtomicBoolean(false);
     this.releaseMessageRepository = releaseMessageRepository;
   }
@@ -69,11 +85,14 @@ public class DatabaseMessageSender implements MessageSender {
   @PostConstruct
   private void initialize() {
     cleanExecutorService.submit(() -> {
+      // 若未停止，持续运行
       while (!cleanStopped.get() && !Thread.currentThread().isInterrupted()) {
         try {
           Long rm = toClean.poll(1, TimeUnit.SECONDS);
+          // 队列非空，处理拉取到的消息
           if (rm != null) {
             cleanMessage(rm);
+            // 队列为空，sleep ，避免空跑，占用 CPU
           } else {
             TimeUnit.SECONDS.sleep(5);
           }
@@ -87,17 +106,24 @@ public class DatabaseMessageSender implements MessageSender {
   private void cleanMessage(Long id) {
     boolean hasMore = true;
     //double check in case the release message is rolled back
+    // 查询对应的 ReleaseMessage 对象，避免已经删除。因为，DatabaseMessageSender 会在多进程中执行
+    // 例如：1）Config Service + Admin Service ；2）N * Config Service ；3）N * Admin Service
     ReleaseMessage releaseMessage = releaseMessageRepository.findById(id).orElse(null);
     if (releaseMessage == null) {
       return;
     }
+    // 循环删除相同消息内容( `message` )的老消息
     while (hasMore && !Thread.currentThread().isInterrupted()) {
+      // 拉取相同消息内容的 100 条的老消息
+      // 老消息的定义：比当前消息编号小，即先发送的
+      // 按照 id 升序
       List<ReleaseMessage> messages = releaseMessageRepository.findFirst100ByMessageAndIdLessThanOrderByIdAsc(
           releaseMessage.getMessage(), releaseMessage.getId());
 
+      // 删除老消息
       releaseMessageRepository.deleteAll(messages);
+      // 若拉取不足 100 条，说明无老消息了
       hasMore = messages.size() == 100;
-
       messages.forEach(toRemove -> Tracer.logEvent(
           String.format("ReleaseMessage.Clean.%s", toRemove.getMessage()), String.valueOf(toRemove.getId())));
     }
