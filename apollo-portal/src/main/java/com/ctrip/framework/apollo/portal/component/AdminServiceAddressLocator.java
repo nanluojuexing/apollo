@@ -23,6 +23,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 初始时，创建延迟 1 秒的任务，从 Meta Service 获取 Config Service 集群地址进行缓存。
+ * 获取成功时，创建延迟 5 分钟的任务，从 Meta Service 获取 Config Service 集群地址刷新缓存。
+ * 获取失败时，创建延迟 10 秒的任务，从 Meta Service 获取 Config Service 集群地址刷新缓存
+ *
+ */
 @Component
 public class AdminServiceAddressLocator {
 

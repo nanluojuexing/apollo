@@ -31,6 +31,10 @@ import com.google.common.escape.Escaper;
 import com.google.common.net.UrlEscapers;
 import com.google.gson.reflect.TypeToken;
 
+/**
+ * 初始时，从 Meta Service 获取 Config Service 集群地址进行缓存。
+ * 定时任务，每 5 分钟，从 Meta Service 获取 Config Service 集群地址刷新缓存
+ */
 public class ConfigServiceLocator {
   private static final Logger logger = LoggerFactory.getLogger(ConfigServiceLocator.class);
   private HttpUtil m_httpUtil;

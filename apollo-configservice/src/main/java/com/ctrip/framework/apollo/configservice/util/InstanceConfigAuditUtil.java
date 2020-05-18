@@ -65,6 +65,10 @@ public class InstanceConfigAuditUtil implements InitializingBean {
         configAppId, configClusterName, configNamespace, releaseKey));
   }
 
+  /**
+   * 记录 instance 和 instanceConfig
+   * @param auditModel
+   */
   void doAudit(InstanceConfigAuditModel auditModel) {
     String instanceCacheKey = assembleInstanceKey(auditModel.getAppId(), auditModel
         .getClusterName(), auditModel.getIp(), auditModel.getDataCenter());

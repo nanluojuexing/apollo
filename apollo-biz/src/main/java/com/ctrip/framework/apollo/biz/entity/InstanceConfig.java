@@ -14,6 +14,9 @@ import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 
 /**
+ *
+ * Instance Config 实体，记录 Instance 对 Namespace 的配置的获取情况。如果一个 Instance 使用了多个 Namespace ，则会记录多条 InstanceConfig
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 @Entity
