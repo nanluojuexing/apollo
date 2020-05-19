@@ -14,6 +14,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * 监听app创建事件
+ */
 @Component
 public class CreationListener {
 
@@ -35,6 +38,7 @@ public class CreationListener {
   @EventListener
   public void onAppCreationEvent(AppCreationEvent event) {
     AppDTO appDTO = BeanUtils.transform(AppDTO.class, event.getApp());
+    // 获得env数组
     List<Env> envs = portalSettings.getActiveEnvs();
     // 循环 Env 数组，调用对应的 Admin Service 的 API ，创建 App 对象
     for (Env env : envs) {

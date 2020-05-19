@@ -40,6 +40,12 @@ public class AdminServiceAPI {
       return restTemplate.get(env, "apps/{appId}", AppDTO.class, appId);
     }
 
+    /**
+     * 针对不同的环境创建app信息 针对 adminService
+     * @param env
+     * @param app
+     * @return
+     */
     public AppDTO createApp(Env env, AppDTO app) {
       return restTemplate.post(env, "apps", app, AppDTO.class);
     }

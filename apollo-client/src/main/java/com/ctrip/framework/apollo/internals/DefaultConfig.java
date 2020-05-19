@@ -26,6 +26,12 @@ import com.google.common.util.concurrent.RateLimiter;
 
 
 /**
+ *
+ * ConfigRepository 的一个实现类 RemoteConfigRepository ，会从远程 Config Service 加载配置。
+ * 但是 Config Service 的配置不是一成不变，可以在 Portal 进行修改。
+ * 所以 RemoteConfigRepository 会在配置变更时，从 Admin Service 重新加载配置。
+ * 为了实现 Config 监听配置的变更，所以需要将 DefaultConfig 注册为 ConfigRepository 的监听器
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 public class DefaultConfig extends AbstractConfig implements RepositoryChangeListener {
@@ -126,6 +132,11 @@ public class DefaultConfig extends AbstractConfig implements RepositoryChangeLis
     return h.keySet();
   }
 
+  /**
+   * 当 ConfigRepository 读取到配置发生变更时，计算配置变更集合，并通知监听器们
+   * @param namespace the namespace of this repository change
+   * @param newProperties the properties after change
+   */
   @Override
   public synchronized void onRepositoryChange(String namespace, Properties newProperties) {
     if (newProperties.equals(m_configProperties.get())) {

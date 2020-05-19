@@ -73,6 +73,11 @@ public class DefaultConfigFactory implements ConfigFactory {
     return new LocalFileConfigRepository(namespace, createRemoteConfigRepository(namespace));
   }
 
+  /**
+   *
+   * @param namespace
+   * @return
+   */
   RemoteConfigRepository createRemoteConfigRepository(String namespace) {
     return new RemoteConfigRepository(namespace);
   }

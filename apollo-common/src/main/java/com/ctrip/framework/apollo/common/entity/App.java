@@ -11,7 +11,7 @@ import javax.persistence.Entity;
 import javax.persistence.Table;
 
 /**
- *
+ * 应用信息实体类
  */
 @Entity
 @Table(name = "App")
@@ -37,6 +37,11 @@ public class App extends BaseEntity {
   @Column(name = "OrgName", nullable = false)
   private String orgName;
 
+  /**
+   * 拥有人名
+   *
+   * 例如在 Portal 系统中，使用系统的管理员账号，即 UserPO.username 字段
+   */
   @NotBlank(message = "OwnerName cannot be blank")
   @Column(name = "OwnerName", nullable = false)
   private String ownerName;

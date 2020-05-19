@@ -14,6 +14,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * 对象创建监听器，目前监听 AppCreationEvent 和 AppNamespaceCreationEvent 事件
+ */
 @Component
 public class DeletionListener {
 

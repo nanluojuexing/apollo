@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ *  App 的 Service 逻辑给 Admin Service 和 Config Service
+ */
 @Service
 public class AppService {
 
@@ -58,12 +61,14 @@ public class AppService {
 
   @Transactional
   public App save(App entity) {
+    // 判断是否已经存在。若是，抛出 ServiceException 异常
     if (!isAppIdUnique(entity.getAppId())) {
       throw new ServiceException("appId not unique");
     }
+    // 保护代码，避免 App 对象中，已经有 id 属性。
     entity.setId(0);//protection
     App app = appRepository.save(entity);
-
+    // 记录 Audit 到数据库中
     auditService.audit(App.class.getSimpleName(), app.getId(), Audit.OP.INSERT,
         app.getDataChangeCreatedBy());
 

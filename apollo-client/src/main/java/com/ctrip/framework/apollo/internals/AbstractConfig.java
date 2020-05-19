@@ -35,6 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * Config 抽象类，实现了
  * 1）缓存读取属性值
  * 2）异步通知监听器
  * 3）计算属性变化等等特性
@@ -50,6 +51,9 @@ public abstract class AbstractConfig implements Config {
    */
   private static final ExecutorService m_executorService;
 
+  /**
+   * ConfigChangeListener 集合
+   */
   private final List<ConfigChangeListener> m_listeners = Lists.newCopyOnWriteArrayList();
   private final Map<ConfigChangeListener, Set<String>> m_interestedKeys = Maps.newConcurrentMap();
   private final Map<ConfigChangeListener, Set<String>> m_interestedKeyPrefixes = Maps.newConcurrentMap();
@@ -63,6 +67,13 @@ public abstract class AbstractConfig implements Config {
   private volatile Cache<String, Boolean> m_booleanCache;
   private volatile Cache<String, Date> m_dateCache;
   private volatile Cache<String, Long> m_durationCache;
+
+  /**
+   * 数组属性 Cache Map
+   *
+   * KEY：分隔符
+   * KEY2：属性建
+   */
   private final Map<String, Cache<String, String[]>> m_arrayCache;
   private final List<Cache> allCaches;
   private final AtomicLong m_configVersion; //indicate config version
@@ -122,7 +133,7 @@ public abstract class AbstractConfig implements Config {
           }
         }
       }
-
+      // 从缓存中，读取属性值
       return getValueFromCache(key, Functions.TO_INT_FUNCTION, m_integerCache, defaultValue);
     } catch (Throwable ex) {
       Tracer.logError(new ApolloConfigException(

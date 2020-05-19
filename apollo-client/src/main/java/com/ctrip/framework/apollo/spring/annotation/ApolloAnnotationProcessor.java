@@ -15,6 +15,9 @@ import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ReflectionUtils;
 
 /**
+ *
+ * ApolloConfigChangeListener来实现自己的监听处理
+ *
  * Apollo Annotation Processor for Spring Application
  *
  * @author Jason Song(song_s@ctrip.com)

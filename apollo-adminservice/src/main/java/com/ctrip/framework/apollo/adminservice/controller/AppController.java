@@ -22,6 +22,9 @@ import javax.validation.Valid;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * admin  创建对应的app应用信息类
+ */
 @RestController
 public class AppController {
 

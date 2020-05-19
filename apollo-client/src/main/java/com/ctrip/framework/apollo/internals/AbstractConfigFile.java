@@ -23,6 +23,9 @@ import com.ctrip.framework.apollo.util.ExceptionUtil;
 import com.google.common.collect.Lists;
 
 /**
+ * 实现 ConfigFile、RepositoryChangeListener 接口，ConfigFile 抽象类
+ * 1）异步通知监听器、
+ * 2）计算属性变化等等特性，是 AbstractConfig + DefaultConfig 的功能子集
  * @author Jason Song(song_s@ctrip.com)
  */
 public abstract class AbstractConfigFile implements ConfigFile, RepositoryChangeListener {

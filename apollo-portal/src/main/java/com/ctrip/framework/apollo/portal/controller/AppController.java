@@ -52,6 +52,10 @@ public class AppController {
   private final UserInfoHolder userInfoHolder;
   private final AppService appService;
   private final PortalSettings portalSettings;
+
+  /**
+   * spring 事件
+   */
   private final ApplicationEventPublisher publisher;
   private final RolePermissionService rolePermissionService;
   private final RoleInitializationService roleInitializationService;
@@ -105,6 +109,11 @@ public class AppController {
     return appService.findByAppIds(appIds, page);
   }
 
+  /**
+   * 创建app
+   * @param appModel
+   * @return
+   */
   @PreAuthorize(value = "@permissionValidator.hasCreateApplicationPermission()")
   @PostMapping
   public App create(@Valid @RequestBody AppModel appModel) {

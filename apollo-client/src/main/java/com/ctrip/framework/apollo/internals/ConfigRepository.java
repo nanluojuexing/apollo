@@ -4,6 +4,9 @@ import com.ctrip.framework.apollo.enums.ConfigSourceType;
 import java.util.Properties;
 
 /**
+ *
+ * 负责从远程的 Config Service 读取配置
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 public interface ConfigRepository {

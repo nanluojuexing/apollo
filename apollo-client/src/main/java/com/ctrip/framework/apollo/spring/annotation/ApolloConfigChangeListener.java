@@ -25,6 +25,8 @@ import java.lang.annotation.Target;
  * }
  * </pre>
  *
+ * 向指定的 Apollo Config 发起配置变更监听
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 @Retention(RetentionPolicy.RUNTIME)

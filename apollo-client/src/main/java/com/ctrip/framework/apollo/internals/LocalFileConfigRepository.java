@@ -27,16 +27,26 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
 /**
+ *
+ * 现 RepositoryChangeListener 接口，继承 AbstractConfigRepository 抽象类，本地文件配置 Repository 实现类
+ *
  * @author Jason Song(song_s@ctrip.com)
  */
 public class LocalFileConfigRepository extends AbstractConfigRepository
     implements RepositoryChangeListener {
   private static final Logger logger = LoggerFactory.getLogger(LocalFileConfigRepository.class);
+  /**
+   * 配置文件目录
+   */
   private static final String CONFIG_DIR = "/config-cache";
   private final String m_namespace;
   private File m_baseDir;
   private final ConfigUtil m_configUtil;
   private volatile Properties m_fileProperties;
+
+  /**
+   * 上游的 ConfigRepository 对象。一般情况下，使用 RemoteConfigRepository 对象，读取远程 Config Service 的配置
+   */
   private volatile ConfigRepository m_upstream;
 
   private volatile ConfigSourceType m_sourceType = ConfigSourceType.LOCAL;
@@ -112,6 +122,11 @@ public class LocalFileConfigRepository extends AbstractConfigRepository
     return m_sourceType;
   }
 
+  /**
+   * 当 ConfigRepository 读取到配置发生变更时，计算配置变更集合，并通知监听器们
+   * @param namespace the namespace of this repository change
+   * @param newProperties the properties after change
+   */
   @Override
   public void onRepositoryChange(String namespace, Properties newProperties) {
     if (newProperties.equals(m_fileProperties)) {
