@@ -210,7 +210,7 @@ public class NotificationControllerV2 implements ReleaseMessageListener {
     List<ApolloConfigNotification> newNotifications =
         getApolloConfigNotifications(namespaces, clientSideNotifications, watchedKeysMap,
             latestReleaseMessages);
-    // 不是空, 理解返回结果, 不等待
+    // 不是空, 立即返回结果, 不等待
     if (!CollectionUtils.isEmpty(newNotifications)) {
       deferredResultWrapper.setResult(newNotifications);
     }
@@ -325,7 +325,7 @@ public class NotificationControllerV2 implements ReleaseMessageListener {
       return;
     }
 
-    //create a new list to avoid ConcurrentModificationException  构造一个新 list ,防止并发失败
+    //create a new list to avoid ConcurrentModificationException  构造一个新 list ,防止并发问题
     List<DeferredResultWrapper> results = Lists.newArrayList(deferredResults.get(content));
 
     // 构建通知的对象
